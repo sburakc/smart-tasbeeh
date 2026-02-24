@@ -1,71 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Tasbeeh - Tasbeeh & Dhikr Counter</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1A4A3A; color: #fff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; }
-    .logo { width: 100px; height: 100px; background: radial-gradient(circle at 40% 38%, #F0F0EA 0%, #D0D0C8 45%, #B0B0A8 75%, #909088 100%); border-radius: 50%; margin: 0 auto 24px; border: 4px solid #4DB89A; box-shadow: 0 0 20px rgba(77,184,154,0.4); }
-    h1 { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
-    .tagline { font-size: 18px; color: rgba(255,255,255,0.7); margin-bottom: 40px; }
-    .features { max-width: 500px; text-align: left; margin-bottom: 40px; }
-    .feature { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
-    .feature-icon { font-size: 20px; min-width: 28px; text-align: center; }
-    .feature-text { font-size: 15px; color: rgba(255,255,255,0.85); line-height: 1.5; }
-    .feature-text strong { color: #fff; }
-    .badges { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; justify-content: center; }
-    .badge { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px; font-size: 14px; color: rgba(255,255,255,0.8); }
-    .links { margin-top: 20px; }
-    .links a { color: rgba(255,255,255,0.5); font-size: 13px; margin: 0 12px; text-decoration: none; }
-    .links a:hover { color: #fff; }
-    .allah { margin-top: 40px; font-size: 14px; color: rgba(255,255,255,0.5); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Smart Tasbeeh - Free dhikr counter app with cloud backup, Arabic pronunciation, undo button and daily tracking. No forced ads.">
+    <meta name="keywords" content="smart tasbeeh, dhikr counter, tasbeeh, prayer counter, islamic app, zikir, tesbih, muslim, dhikr, tasbih, counter, prayer beads, digital tasbeeh, quran, dua, SubhanAllah, Alhamdulillah, Allahu Akbar">
+    <meta name="author" content="Smart Tasbeeh">
+    <meta property="og:title" content="Smart Tasbeeh - Free Dhikr Counter">
+    <meta property="og:description" content="Beautiful dhikr counter with cloud backup, Arabic pronunciation, undo button and daily tracking. 33 languages. No forced ads.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sburakc.github.io/smart-tasbeeh/">
+    <link rel="canonical" href="https://sburakc.github.io/smart-tasbeeh/">
+    <title>Smart Tasbeeh - Free Dhikr Counter App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: #333;
+            background: #1A4A3A;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 600px;
+            text-align: center;
+            color: #fff;
+        }
+        h1 {
+            font-size: 36px;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .tagline {
+            font-size: 18px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 40px;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 40px;
+            text-align: left;
+        }
+        .feature {
+            background: rgba(255,255,255,0.08);
+            padding: 16px;
+            border-radius: 12px;
+        }
+        .feature strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #A5D6A7;
+        }
+        .feature span {
+            font-size: 14px;
+            color: rgba(255,255,255,0.6);
+        }
+        .links {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .links a {
+            color: #A5D6A7;
+            text-decoration: none;
+            padding: 10px 24px;
+            border: 1px solid rgba(165,214,167,0.3);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .links a:hover {
+            background: rgba(165,214,167,0.1);
+        }
+        @media (max-width: 500px) {
+            .features { grid-template-columns: 1fr; }
+            h1 { font-size: 28px; }
+        }
+    </style>
 </head>
 <body>
-  <div class="logo"></div>
-  <h1>Smart Tasbeeh</h1>
-  <p class="tagline">Tasbeeh & Dhikr Counter</p>
+    <div class="container">
+        <h1>Smart Tasbeeh</h1>
+        <p class="tagline">Free Dhikr Counter App</p>
 
-  <div class="features">
-    <div class="feature">
-      <span class="feature-icon">&#x1F4F2;</span>
-      <span class="feature-text"><strong>Beautiful counter</strong> that looks and feels like a real tasbeeh device</span>
-    </div>
-    <div class="feature">
-      <span class="feature-icon">&#x21A9;</span>
-      <span class="feature-text"><strong>Undo button</strong> &mdash; fix accidental taps instantly</span>
-    </div>
-    <div class="feature">
-      <span class="feature-icon">&#x1F3AF;</span>
-      <span class="feature-text"><strong>Set targets</strong> (33, 99, 100 or any custom number)</span>
-    </div>
-    <div class="feature">
-      <span class="feature-icon">&#x1F4CA;</span>
-      <span class="feature-text"><strong>Daily history</strong> with session logs and statistics</span>
-    </div>
-    <div class="feature">
-      <span class="feature-icon">&#x1F30D;</span>
-      <span class="feature-text"><strong>33 languages</strong> supported worldwide</span>
-    </div>
-    <div class="feature">
-      <span class="feature-icon">&#x1F6AB;</span>
-      <span class="feature-text"><strong>No ads, no tracking, no data collection</strong> &mdash; completely free</span>
-    </div>
-  </div>
+        <div class="features">
+            <div class="feature">
+                <strong>Tap Anywhere</strong>
+                <span>Full screen tap zone for easy counting</span>
+            </div>
+            <div class="feature">
+                <strong>Cloud Backup</strong>
+                <span>Sync your dhikr across devices</span>
+            </div>
+            <div class="feature">
+                <strong>Arabic TTS</strong>
+                <span>Listen to correct pronunciation</span>
+            </div>
+            <div class="feature">
+                <strong>33 Languages</strong>
+                <span>Available worldwide</span>
+            </div>
+            <div class="feature">
+                <strong>Daily Tracking</strong>
+                <span>History and progress stats</span>
+            </div>
+            <div class="feature">
+                <strong>No Forced Ads</strong>
+                <span>Worship without interruption</span>
+            </div>
+        </div>
 
-  <div class="badges">
-    <span class="badge">Free & Open</span>
-    <span class="badge">No Ads</span>
-    <span class="badge">Offline First</span>
-    <span class="badge">33 Languages</span>
-  </div>
-
-  <div class="links">
-    <a href="privacy-policy.html">Privacy Policy</a>
-  </div>
-
-  <p class="allah">Made for the sake of Allah</p>
+        <div class="links">
+            <a href="privacy-policy.html">Privacy Policy</a>
+            <a href="delete-account.html">Delete Account</a>
+        </div>
+    </div>
 </body>
 </html>
