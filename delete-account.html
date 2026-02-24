@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delete Account - Smart Tasbeeh</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f9f9f6;
+    color: #333;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 36px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  h1 {
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 4px;
+    color: #1A4A3A;
+  }
+  .subtitle {
+    text-align: center;
+    color: #888;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .warning {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    color: #991b1b;
+    line-height: 1.5;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  input {
+    width: 100%;
+    height: 46px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #fafafa;
+    color: #333;
+    padding: 0 14px;
+    font-size: 16px;
+    margin-bottom: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: #1A4A3A; }
+  .code-input {
+    width: 160px;
+    text-align: center;
+    font-size: 26px;
+    letter-spacing: 10px;
+    font-weight: 700;
+    margin: 0 auto 16px;
+    display: block;
+  }
+  button {
+    width: 100%;
+    height: 46px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.9; }
+  .btn-danger {
+    background: #dc2626;
+    color: white;
+  }
+  .btn-danger:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  .btn-secondary {
+    background: transparent;
+    color: #1A4A3A;
+    border: 1px solid #ddd;
+  }
+  .btn-secondary:hover { background: #f5f5f0; }
+  .error {
+    color: #dc2626;
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .success { text-align: center; padding: 32px 0; }
+  .success-icon { font-size: 48px; color: #1A4A3A; margin-bottom: 12px; }
+  .success h2 { color: #1A4A3A; font-size: 20px; margin-bottom: 8px; }
+  .success p { color: #666; font-size: 14px; line-height: 1.5; }
+  .step { display: none; }
+  .step.active { display: block; }
+  .loader {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .back-link {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    color: #888;
+    font-size: 13px;
+    text-decoration: none;
+  }
+  .back-link:hover { color: #1A4A3A; }
+</style>
+</head>
+<body>
+<div class="card">
+  <!-- Step 1: Email -->
+  <div id="step1" class="step active">
+    <h1>Smart Tasbeeh</h1>
+    <div class="subtitle">Account & Data Deletion</div>
+    <div class="warning">
+      This will <strong>permanently delete</strong> your account and all synced data including counting sessions, daily logs, and custom dhikr. This action cannot be undone.
+    </div>
+    <label for="email">Email address linked to your account</label>
+    <input type="email" id="email" placeholder="your@email.com" autocomplete="email">
+    <div id="error1" class="error"></div>
+    <button class="btn-danger" onclick="sendCode()">Send Verification Code</button>
+    <a href="privacy-policy.html" class="back-link">Privacy Policy</a>
+  </div>
+
+  <!-- Step 2: OTP + Confirm -->
+  <div id="step2" class="step">
+    <h1>Verify Your Identity</h1>
+    <div class="subtitle" id="emailDisplay"></div>
+    <label style="text-align:center">Enter the 4-digit code sent to your email</label>
+    <input type="text" id="code" class="code-input" maxlength="4" inputmode="numeric" placeholder="0000">
+    <div id="error2" class="error"></div>
+    <button class="btn-danger" onclick="verifyAndDelete()">Permanently Delete My Account</button>
+    <button class="btn-secondary" onclick="sendCode()">Resend Code</button>
+  </div>
+
+  <!-- Step 3: Done -->
+  <div id="step3" class="step">
+    <div class="success">
+      <div class="success-icon">&#10003;</div>
+      <h2>Account Deleted</h2>
+      <p>Your account and all associated data have been permanently removed from our servers.</p>
+      <p style="margin-top:12px">You can continue using Smart Tasbeeh offline. Your local data on this device is not affected.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://smart-tasbeeh-api.voixie-ai.workers.dev';
+
+function showStep(n) {
+  document.querySelectorAll('.step').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('step' + n).classList.add('active');
+}
+
+function setError(step, msg) {
+  document.getElementById('error' + step).textContent = msg;
+}
+
+function setLoading(btn, loading) {
+  btn.disabled = loading;
+  if (loading) btn.dataset.orig = btn.textContent;
+  btn.innerHTML = loading
+    ? '<span class="loader"></span> Please wait...'
+    : (btn.dataset.orig || btn.textContent);
+}
+
+async function sendCode() {
+  var email = document.getElementById('email').value.trim();
+  if (!email || email.indexOf('@') === -1) {
+    setError(1, 'Please enter a valid email address.');
+    return;
+  }
+  setError(1, '');
+  var btn = event.target;
+  setLoading(btn, true);
+
+  try {
+    var res = await fetch(API + '/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await res.json();
+    setLoading(btn, false);
+
+    if (!res.ok) {
+      setError(1, data.error || 'Failed to send code.');
+      return;
+    }
+    document.getElementById('emailDisplay').textContent = 'Code sent to ' + email;
+    showStep(2);
+    document.getElementById('code').focus();
+  } catch (e) {
+    setLoading(btn, false);
+    setError(1, 'Network error. Please try again.');
+  }
+}
+
+async function verifyAndDelete() {
+  var email = document.getElementById('email').value.trim();
+  var code = document.getElementById('code').value.trim();
+  if (!code || code.length !== 4) {
+    setError(2, 'Please enter the 4-digit code.');
+    return;
+  }
+  setError(2, '');
+  var btn = event.target;
+  setLoading(btn, true);
+
+  try {
+    // Verify OTP
+    var verifyRes = await fetch(API + '/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, code: code })
+    });
+    var verifyData = await verifyRes.json();
+
+    if (!verifyRes.ok) {
+      setLoading(btn, false);
+      setError(2, verifyData.error || 'Verification failed.');
+      return;
+    }
+
+    // Delete account
+    var deleteRes = await fetch(API + '/account/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + verifyData.token
+      }
+    });
+    var deleteData = await deleteRes.json();
+    setLoading(btn, false);
+
+    if (!deleteRes.ok) {
+      setError(2, deleteData.error || 'Deletion failed.');
+      return;
+    }
+
+    showStep(3);
+  } catch (e) {
+    setLoading(btn, false);
+    setError(2, 'Network error. Please try again.');
+  }
+}
+</script>
+</body>
+</html>
