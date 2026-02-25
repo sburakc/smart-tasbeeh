@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Smart Tasbeeh - Admin Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f2e1f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 {
+    color: #4CAF50;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  .subtitle { color: #888; font-size: 13px; margin-bottom: 24px; }
+  .auth-form {
+    background: #1a3d2a;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .auth-form label { display: block; margin-bottom: 6px; font-size: 13px; color: #aaa; }
+  .auth-form input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #2a5a3a;
+    border-radius: 8px;
+    background: #0f2e1f;
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .auth-form button {
+    background: #1B5E20;
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .auth-form button:hover { background: #2E7D32; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card {
+    background: #1a3d2a;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card .value { font-size: 32px; font-weight: 700; color: #4CAF50; margin-top: 4px; }
+  .card .sub { font-size: 12px; color: #666; margin-top: 2px; }
+
+  .section {
+    background: #1a3d2a;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .section h2 { font-size: 16px; color: #4CAF50; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: #888; padding: 6px 8px; border-bottom: 1px solid #2a5a3a; }
+  td { padding: 6px 8px; font-size: 13px; border-bottom: 1px solid rgba(42,90,58,0.3); }
+  .bar-cell { display: flex; align-items: center; gap: 8px; }
+  .bar { height: 6px; background: #4CAF50; border-radius: 3px; min-width: 4px; }
+
+  .loading { text-align: center; padding: 40px; color: #888; }
+  .error { color: #ef5350; padding: 12px; background: rgba(239,83,80,0.1); border-radius: 8px; margin-bottom: 16px; }
+  #dashboard { display: none; }
+
+  .chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; margin-top: 8px; }
+  .chart-bar {
+    flex: 1;
+    background: #4CAF50;
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+    position: relative;
+    cursor: pointer;
+  }
+  .chart-bar:hover { background: #66BB6A; }
+  .chart-bar .tooltip {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    margin-bottom: 4px;
+  }
+  .chart-bar:hover .tooltip { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Smart Tasbeeh Admin</h1>
+  <p class="subtitle">Analytics Dashboard</p>
+
+  <div id="auth" class="auth-form">
+    <label for="apiKey">Admin Key</label>
+    <input type="password" id="apiKey" placeholder="Enter admin secret key">
+    <button onclick="loadStats()">Load Dashboard</button>
+    <div id="authError" class="error" style="display:none; margin-top:12px;"></div>
+  </div>
+
+  <div id="dashboard">
+    <div class="cards" id="summaryCards"></div>
+
+    <div class="section">
+      <h2>Daily Launches (Last 30 Days)</h2>
+      <div class="chart" id="dailyChart"></div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+      <div class="section">
+        <h2>Countries</h2>
+        <table id="countriesTable"><thead><tr><th>Country</th><th>Launches</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="section">
+        <h2>Platforms</h2>
+        <table id="platformsTable"><thead><tr><th>Platform</th><th>Launches</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>App Versions</h2>
+      <table id="versionsTable"><thead><tr><th>Version</th><th>Launches</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://smart-tasbeeh-api.voixie-ai.workers.dev';
+
+// Country flag emoji from ISO code
+function flag(code) {
+  if (!code || code === 'unknown') return '';
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+}
+
+async function loadStats() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) return;
+
+  const errEl = document.getElementById('authError');
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/admin/stats?key=${encodeURIComponent(key)}`);
+    if (!res.ok) {
+      errEl.textContent = res.status === 401 ? 'Invalid admin key.' : `Error: ${res.status}`;
+      errEl.style.display = 'block';
+      return;
+    }
+    const data = await res.json();
+    renderDashboard(data);
+  } catch (e) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+  }
+}
+
+function renderDashboard(data) {
+  document.getElementById('auth').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  // Summary cards
+  const { launches, totalUsers } = data;
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="card"><div class="label">Today</div><div class="value">${launches.today}</div></div>
+    <div class="card"><div class="label">This Week</div><div class="value">${launches.week}</div></div>
+    <div class="card"><div class="label">This Month</div><div class="value">${launches.month}</div></div>
+    <div class="card"><div class="label">All Time</div><div class="value">${launches.total}</div></div>
+    <div class="card"><div class="label">Registered Users</div><div class="value">${totalUsers}</div></div>
+  `;
+
+  // Daily chart
+  const daily = (data.daily || []).reverse();
+  const maxCount = Math.max(...daily.map(d => d.count), 1);
+  document.getElementById('dailyChart').innerHTML = daily.map(d => {
+    const pct = (d.count / maxCount) * 100;
+    return `<div class="chart-bar" style="height:${Math.max(pct, 2)}%"><span class="tooltip">${d.day}: ${d.count}</span></div>`;
+  }).join('');
+
+  // Tables
+  renderTable('countriesTable', data.countries || [], r => `<td>${flag(r.country)} ${r.country}</td>`, maxCount);
+  renderTable('platformsTable', data.platforms || [], r => `<td>${r.platform || 'unknown'}</td>`, maxCount);
+  renderTable('versionsTable', data.versions || [], r => `<td>${r.app_version || 'unknown'}</td>`, maxCount);
+}
+
+function renderTable(id, rows, renderFirst, maxVal) {
+  const max = rows.length > 0 ? Math.max(...rows.map(r => r.count)) : 1;
+  const tbody = document.querySelector(`#${id} tbody`);
+  tbody.innerHTML = rows.map(r => {
+    const pct = (r.count / max) * 100;
+    return `<tr>${renderFirst(r)}<td><div class="bar-cell"><div class="bar" style="width:${pct}px"></div><span>${r.count}</span></div></td></tr>`;
+  }).join('');
+}
+
+// Enter key support
+document.getElementById('apiKey').addEventListener('keydown', e => { if (e.key === 'Enter') loadStats(); });
+</script>
+</body>
+</html>
