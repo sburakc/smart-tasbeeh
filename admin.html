@@ -49,6 +49,7 @@
     font-weight: 600;
   }
   .auth-form button:hover { background: #2E7D32; }
+  .auth-form button:disabled { opacity: 0.6; cursor: default; }
 
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .card {
@@ -74,7 +75,7 @@
   .bar { height: 6px; background: #4CAF50; border-radius: 3px; min-width: 4px; }
 
   .loading { text-align: center; padding: 40px; color: #888; }
-  .error { color: #ef5350; padding: 12px; background: rgba(239,83,80,0.1); border-radius: 8px; margin-bottom: 16px; }
+  .error { color: #ef5350; padding: 12px; background: rgba(239,83,80,0.1); border-radius: 8px; margin-bottom: 16px; line-height: 1.5; }
   #dashboard { display: none; }
 
   .chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; margin-top: 8px; }
@@ -137,12 +138,12 @@
 <body>
 <div class="container">
   <h1>Smart Tasbeeh Admin</h1>
-  <p class="subtitle">Analytics Dashboard</p>
+  <p class="subtitle">Analytics Dashboard<span id="endpoint"></span></p>
 
   <div id="auth" class="auth-form">
     <label for="apiKey">Admin Key</label>
     <input type="password" id="apiKey" placeholder="Enter admin secret key">
-    <button onclick="loadStats()">Load Dashboard</button>
+    <button id="loadButton" onclick="loadStats()">Load Dashboard</button>
     <div id="authError" class="error" style="display:none; margin-top:12px;"></div>
   </div>
 
@@ -207,43 +208,115 @@
 </div>
 
 <script>
-const API = 'https://smart-tasbeeh-api.voixie-ai.workers.dev';
+// Tried in order; both reach the same Worker. Office firewalls and antivirus
+// web filters often block the shared *.workers.dev domain, so our own domain
+// goes first.
+const API_BASES = [
+  'https://tasbeeh-api.voixie.com',
+  'https://smart-tasbeeh-api.voixie-ai.workers.dev',
+];
+const REQUEST_TIMEOUT_MS = 12000;
+
+const NETWORK_ERROR_TEXT =
+  'Sunucuya bu ağdan ulaşılamadı. Ağ (iş yeri güvenlik duvarı, VPN, antivirüs) engelliyor ya da ' +
+  'sunucu kapalı olabilir. Telefonda mobil veriyle dene: orada açılıyorsa sorun bu ağda. ' +
+  `(Denenen: ${API_BASES.map(base => new URL(base).host).join(', ')})`;
+
+let apiBase = null; // the endpoint that answered last
+let adminKey = '';
+
+// Everything the API returns goes through this before innerHTML: platform and
+// app_version come from the unauthenticated /analytics/event.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
 
 // Country flag emoji from ISO code
 function flag(code) {
-  if (!code || code === 'unknown') return '';
+  if (!/^[A-Za-z]{2}$/.test(code || '')) return '';
   return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
 }
 
-let adminKey = '';
+/**
+ * Sends the request to the endpoint that answered last, then to the others.
+ * Only a network failure (blocked, offline, DNS, timeout) or a 404 from a host
+ * that isn't the Worker moves on; any other status is the Worker's answer.
+ * The key goes in a header, never in the URL.
+ */
+async function adminFetch(path, key, options = {}) {
+  const bases = apiBase ? [apiBase, ...API_BASES.filter(base => base !== apiBase)] : API_BASES;
+  let lastError = new Error('No endpoint answered.');
+  for (const base of bases) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(base + path, {
+        ...options,
+        signal: controller.signal,
+        headers: { ...options.headers, 'X-Admin-Key': key },
+      });
+      if (res.status === 404) {
+        lastError = new Error(`${base} answered 404.`);
+        continue;
+      }
+      apiBase = base;
+      document.getElementById('endpoint').textContent = ` · ${new URL(base).host}`;
+      return res;
+    } catch (e) {
+      lastError = e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError;
+}
+
+function showAuthError(text) {
+  const errEl = document.getElementById('authError');
+  errEl.textContent = text;
+  errEl.style.display = 'block';
+}
 
 async function loadStats() {
   const key = document.getElementById('apiKey').value.trim();
   if (!key) return;
 
-  const errEl = document.getElementById('authError');
-  errEl.style.display = 'none';
+  const button = document.getElementById('loadButton');
+  document.getElementById('authError').style.display = 'none';
+  button.disabled = true;
+  button.textContent = 'Loading…';
 
   try {
-    const res = await fetch(`${API}/admin/stats?key=${encodeURIComponent(key)}`);
-    if (!res.ok) {
-      errEl.textContent = res.status === 401 ? 'Invalid admin key.' : `Error: ${res.status}`;
-      errEl.style.display = 'block';
+    let res;
+    try {
+      res = await adminFetch('/admin/stats', key);
+    } catch (e) {
+      showAuthError(NETWORK_ERROR_TEXT);
       return;
     }
-    const data = await res.json();
+    if (!res.ok) {
+      showAuthError(res.status === 401 ? 'Invalid admin key.' : `Server error ${res.status}. Try again in a minute.`);
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    if (!data || !data.launches) {
+      showAuthError('Unexpected response from the server.');
+      return;
+    }
     adminKey = key;
     renderDashboard(data);
     loadForceUpdateConfig();
-  } catch (e) {
-    errEl.textContent = 'Network error. Please try again.';
-    errEl.style.display = 'block';
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Load Dashboard';
   }
 }
 
 async function loadForceUpdateConfig() {
   try {
-    const res = await fetch(`${API}/admin/config?key=${encodeURIComponent(adminKey)}`);
+    const res = await adminFetch('/admin/config', adminKey);
     if (!res.ok) return;
     const config = await res.json();
     for (const platform of ['android', 'ios']) {
@@ -265,12 +338,12 @@ async function saveConfig(platform) {
   statusEl.textContent = 'Saving...';
 
   try {
-    const res = await fetch(`${API}/admin/config?key=${encodeURIComponent(adminKey)}`, {
+    const res = await adminFetch('/admin/config', adminKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ platform, min_version: min, latest_version: latest }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       statusEl.className = 'fu-status err';
       statusEl.textContent = data.error || `Error: ${res.status}`;
@@ -280,7 +353,7 @@ async function saveConfig(platform) {
     statusEl.textContent = `Saved ✓ (min ${min} / latest ${latest})`;
   } catch (e) {
     statusEl.className = 'fu-status err';
-    statusEl.textContent = 'Network error.';
+    statusEl.textContent = 'Network error: sunucuya ulaşılamadı, kaydedilmedi.';
   }
 }
 
@@ -291,11 +364,11 @@ function renderDashboard(data) {
   // Summary cards
   const { launches, totalUsers } = data;
   document.getElementById('summaryCards').innerHTML = `
-    <div class="card"><div class="label">Today</div><div class="value">${launches.today}</div></div>
-    <div class="card"><div class="label">This Week</div><div class="value">${launches.week}</div></div>
-    <div class="card"><div class="label">This Month</div><div class="value">${launches.month}</div></div>
-    <div class="card"><div class="label">All Time</div><div class="value">${launches.total}</div></div>
-    <div class="card"><div class="label">Registered Users</div><div class="value">${totalUsers}</div></div>
+    <div class="card"><div class="label">Today</div><div class="value">${escapeHtml(launches.today)}</div></div>
+    <div class="card"><div class="label">This Week</div><div class="value">${escapeHtml(launches.week)}</div></div>
+    <div class="card"><div class="label">This Month</div><div class="value">${escapeHtml(launches.month)}</div></div>
+    <div class="card"><div class="label">All Time</div><div class="value">${escapeHtml(launches.total)}</div></div>
+    <div class="card"><div class="label">Registered Users</div><div class="value">${escapeHtml(totalUsers)}</div></div>
   `;
 
   // Daily chart
@@ -303,13 +376,13 @@ function renderDashboard(data) {
   const maxCount = Math.max(...daily.map(d => d.count), 1);
   document.getElementById('dailyChart').innerHTML = daily.map(d => {
     const pct = (d.count / maxCount) * 100;
-    return `<div class="chart-bar" style="height:${Math.max(pct, 2)}%"><span class="tooltip">${d.day}: ${d.count}</span></div>`;
+    return `<div class="chart-bar" style="height:${Math.max(pct, 2)}%"><span class="tooltip">${escapeHtml(d.day)}: ${escapeHtml(d.count)}</span></div>`;
   }).join('');
 
   // Tables
-  renderTable('countriesTable', data.countries || [], r => `<td>${flag(r.country)} ${r.country}</td>`, maxCount);
-  renderTable('platformsTable', data.platforms || [], r => `<td>${r.platform || 'unknown'}</td>`, maxCount);
-  renderTable('versionsTable', data.versions || [], r => `<td>${r.app_version || 'unknown'}</td>`, maxCount);
+  renderTable('countriesTable', data.countries || [], r => `<td>${flag(r.country)} ${escapeHtml(r.country)}</td>`);
+  renderTable('platformsTable', data.platforms || [], r => `<td>${escapeHtml(r.platform || 'unknown')}</td>`);
+  renderTable('versionsTable', data.versions || [], r => `<td>${escapeHtml(r.app_version || 'unknown')}</td>`);
 
   // Users list
   const users = data.users || [];
@@ -319,17 +392,17 @@ function renderDashboard(data) {
     tbl.style.display = 'table';
     tbl.querySelector('tbody').innerHTML = users.map((u, i) => {
       const d = u.created_at ? new Date(u.created_at).toLocaleDateString('tr-TR', { day:'numeric', month:'short', year:'numeric' }) : '—';
-      return `<tr><td style="color:#888">${i + 1}</td><td>${u.email}</td><td style="color:#888">${d}</td></tr>`;
+      return `<tr><td style="color:#888">${i + 1}</td><td>${escapeHtml(u.email)}</td><td style="color:#888">${escapeHtml(d)}</td></tr>`;
     }).join('');
   }
 }
 
-function renderTable(id, rows, renderFirst, maxVal) {
+function renderTable(id, rows, renderFirst) {
   const max = rows.length > 0 ? Math.max(...rows.map(r => r.count)) : 1;
   const tbody = document.querySelector(`#${id} tbody`);
   tbody.innerHTML = rows.map(r => {
     const pct = (r.count / max) * 100;
-    return `<tr>${renderFirst(r)}<td><div class="bar-cell"><div class="bar" style="width:${pct}px"></div><span>${r.count}</span></div></td></tr>`;
+    return `<tr>${renderFirst(r)}<td><div class="bar-cell"><div class="bar" style="width:${pct}px"></div><span>${escapeHtml(r.count)}</span></div></td></tr>`;
   }).join('');
 }
 
