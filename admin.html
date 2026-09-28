@@ -208,11 +208,10 @@
 </div>
 
 <script>
-// Tried in order; both reach the same Worker. Office firewalls and antivirus
-// web filters often block the shared *.workers.dev domain, so our own domain
-// goes first.
+// Tried in order, all reaching the same Worker. Office firewalls and antivirus
+// web filters often block the shared *.workers.dev domain: once the app has
+// its own domain attached to the Worker, list it first.
 const API_BASES = [
-  'https://tasbeeh-api.voixie.com',
   'https://smart-tasbeeh-api.voixie-ai.workers.dev',
 ];
 const REQUEST_TIMEOUT_MS = 12000;
